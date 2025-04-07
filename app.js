@@ -1,3 +1,2 @@
 
-    console.log("Welcome to بيان شوب Application!");
-    
+console.log("بيان شوب يعمل ✅");
