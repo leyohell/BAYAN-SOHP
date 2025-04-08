@@ -2,13 +2,191 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>واجهة المتجر</title>
-  <script type="module" crossorigin src="/assets/index.js"></script>
-  <link rel="stylesheet" href="/assets/index.css">
+  <meta charset="UTF-8">
+  <title>بيان شوب</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial; direction: rtl; margin: 0; background: #f4f4f4; }
+    .header { background: #222; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .main { padding: 20px; }
+    .hidden { display: none; }
+    .product-image { max-width: 260px; max-height: 260px; cursor: pointer; border-radius: 5px; }
+    button { padding: 8px 15px; margin-top: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    .remove-btn { background: #dc3545; }
+    input, select { padding: 8px; margin-top: 5px; width: 100%; border: 1px solid #ccc; border-radius: 5px; }
+    .box { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+  </style>
 </head>
 <body>
-  <div id="root"></div>
+
+<div class="header">
+  <div><strong>🛍️ بيان شوب</strong></div>
+  <div><button onclick="showAdminLogin()">🔐 دخول المشرف</button></div>
+</div>
+
+<div class="main">
+  <div id="customerView">
+    <div class="box">
+      <h2>منتجاتنا</h2>
+      <div id="productList"></div>
+    </div>
+    <div class="box">
+      <h3>سلة المشتريات</h3>
+      <div id="cartList"></div>
+    </div>
+    <div class="box">
+      <h3>بيانات الزبون</h3>
+      <input type="text" id="name" placeholder="الاسم الكامل">
+      <input type="text" id="phone" placeholder="رقم الهاتف">
+      <input type="text" id="address" placeholder="رابط العنوان - Google Maps">
+      <input type="text" id="manualAddress" placeholder="العنوان اليدوي (مثال: سوق الجمعة)">
+      <button onclick="submitOrder()">تأكيد الطلب</button>
+    </div>
+  </div>
+
+  <div id="adminLogin" class="hidden">
+    <div class="box">
+      <h3>كلمة مرور المشرف</h3>
+      <input type="password" id="adminPass" placeholder="كلمة المرور">
+      <button onclick="verifyAdmin()">دخول</button>
+    </div>
+  </div>
+
+  <div id="adminView" class="hidden">
+    <div class="box">
+      <h2>لوحة تحكم المشرف</h2>
+      <div id="orderList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- نافذة عرض الصور -->
+<div id="imageModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.8);">
+  <span onclick="document.getElementById('imageModal').style.display='none'" style="position:absolute; top:20px; right:30px; color:white; font-size:30px; cursor:pointer;">&times;</span>
+  <img id="modalImage" style="margin:auto; display:block; max-width:95%; max-height:95%; margin-top:5%;">
+</div>
+
+<script>
+  const products = [
+    { id: 1, name: "فستان وردي", price: 80, color: "وردي", fabric: "قطن", size: "M", image: "https://i.imgur.com/U5gXqzo.jpg" },
+    { id: 2, name: "شيلة أنيقة", price: 50, color: "أسود", fabric: "حرير", size: "حر", image: "https://i.imgur.com/zlZVpAK.jpg" },
+    { id: 3, name: "عباية كاجوال", price: 95, color: "أبيض", fabric: "شيفون", size: "L", image: "https://i.imgur.com/6NMRUrj.jpg" },
+  ];
+  let cart = [];
+
+  function showImageModal(src) {
+    document.getElementById('modalImage').src = src;
+    document.getElementById('imageModal').style.display = 'block';
+  }
+
+  function renderProducts() {
+    const list = document.getElementById("productList");
+    list.innerHTML = "";
+    products.forEach(p => {
+      list.innerHTML += `
+        <div style="margin-bottom:15px">
+          <img src="${p.image}" class="product-image" onclick="showImageModal('${p.image}')">
+          <p><strong>${p.name}</strong></p>
+          <p>السعر: ${p.price} د.ل</p>
+          <p>اللون: ${p.color} | القماش: ${p.fabric} | المقاس: ${p.size}</p>
+          <button onclick="addToCart(${p.id})">أضف إلى السلة</button>
+        </div>
+      `;
+    });
+  }
+
+  function renderCart() {
+    const list = document.getElementById("cartList");
+    list.innerHTML = "";
+    if (cart.length === 0) {
+      list.innerHTML = "<p>السلة فارغة</p>";
+    } else {
+      cart.forEach((item, i) => {
+        list.innerHTML += `<p>${item.name} - ${item.price} د.ل 
+          <button class="remove-btn" onclick="removeFromCart(${i})">إزالة</button></p>`;
+      });
+      const total = cart.reduce((sum, p) => sum + p.price, 0) + 15;
+      list.innerHTML += `<p><strong>الإجمالي (مع التوصيل): ${total} د.ل</strong></p>`;
+    }
+  }
+
+  function addToCart(id) {
+    const p = products.find(x => x.id === id);
+    cart.push(p);
+    renderCart();
+  }
+
+  function removeFromCart(index) {
+    cart.splice(index, 1);
+    renderCart();
+  }
+
+  function submitOrder() {
+    const name = document.getElementById("name").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+    const address = document.getElementById("address").value.trim();
+    const manual = document.getElementById("manualAddress").value.trim();
+
+    if (!name || !phone || !address || !manual || cart.length === 0) {
+      alert("يرجى تعبئة كل البيانات وإضافة منتجات");
+      return;
+    }
+    if (!/^[0-9]{10}$/.test(phone)) {
+      alert("📱 رقم الهاتف يجب أن يكون 10 أرقام");
+      return;
+    }
+
+    const order = {
+      name, phone, address, manual,
+      items: cart, total: cart.reduce((a,b)=>a+b.price, 0) + 15
+    };
+    const key = `${name}-${phone}-${address}`;
+    localStorage.setItem(key, JSON.stringify(order));
+    alert("✅ تم إرسال الطلب، سيتم التواصل معك قريباً");
+    cart = [];
+    renderCart();
+  }
+
+  function showAdminLogin() {
+    document.getElementById("customerView").style.display = "none";
+    document.getElementById("adminLogin").style.display = "block";
+  }
+
+  function verifyAdmin() {
+    const pass = document.getElementById("adminPass").value;
+    if (pass === "LEYO123123") {
+      document.getElementById("adminLogin").style.display = "none";
+      document.getElementById("adminView").style.display = "block";
+      renderOrders();
+    } else {
+      alert("كلمة المرور خاطئة");
+    }
+  }
+
+  function renderOrders() {
+    const list = document.getElementById("orderList");
+    list.innerHTML = "";
+    Object.keys(localStorage).forEach(k => {
+      if (k.includes("-") && localStorage.getItem(k).includes("items")) {
+        const order = JSON.parse(localStorage.getItem(k));
+        list.innerHTML += `
+          <div class="box">
+            <p><strong>👤 ${order.name}</strong></p>
+            <p>📞 ${order.phone}</p>
+            <p>🌍 <a href="${order.address}" target="_blank">رابط Google Maps</a></p>
+            <p>📍 ${order.manual}</p>
+            <p>💰 الإجمالي: ${order.total} د.ل</p>
+            <p>📦 المنتجات:</p>
+            <ul>${order.items.map(i => `<li>${i.name} - ${i.price} د.ل</li>`).join("")}</ul>
+          </div>
+        `;
+      }
+    });
+  }
+
+  renderProducts();
+  renderCart();
+</script>
+
 </body>
 </html>
